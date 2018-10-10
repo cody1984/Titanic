@@ -5,9 +5,13 @@ library(ggplot2)
 library(ggExtra)
 library(caret)
 library(mice)
-#library(VIM)
+library(VIM)
 library(lattice)
 library(DMwR)
+library(rpart)
+library(MASS)
+library(randomForest)
+
 
 library(rattle)
 
@@ -107,43 +111,38 @@ ggMarginal(p, type="boxplot")
 
 # Modelling Code ----------------------------------------------------------
 
+set.seed(42)
+train$Survived <- as.factor(train$Survived)
+
 imp <- mice(train)
 train2 <- complete(imp)
 
-set.seed(42)
-
-
-train2$Survived <- as.factor(train2$Survived)
-
-
-trControl = trainControl(method='cv',number=9)
-
-
-m.nb <- train(Survived ~ ., data = train, method = "nb", trControl = trainControl(method='cv',number=9))
-m.nb
-
-m.C5.0 <- train(Survived ~ ., data = train2, method = "C5.0")
-plot(m.C5.0)
-
-p <- predict(m.C5.0, train2)
-table(p, train$Survived)
-
-p <- predict(m.C5.0, test)
-table(p, train$Survived)
 
 fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
-             data=train2,
-             method="class")
+             data = train2,
+             method = "class")
 
+summary(fit)
 Prediction <- predict(fit, test, type = "class")
 
-library(rpart)
+
+fit <- glm(Survived ~ Pclass + Sex + Age + SibSp,
+           family = binomial(logit),
+           data=train2)
+
+summary(fit)
+Prediction <- predict(fit, test, type = "response")
+Prediction <- ifelse(Prediction > 0.5,1,0)
+
+
+
 
 # Submission Output -------------------------------------------------------
 
 submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
-write.csv(submit, file = "rpart_mice.csv", row.names = FALSE)
 
+write.csv(submit, file = "rpart_mice.csv", row.names = FALSE)
+write.csv(submit, file = "logit_mice.csv", row.names = FALSE)
 
 
 # Throwaway code ----------------------------------------------------------
