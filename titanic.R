@@ -5,13 +5,14 @@ library(ggplot2)
 library(ggExtra)
 library(caret)
 library(mice)
-library(VIM)
+#library(VIM)
 library(lattice)
+library(DMwR)
 
 library(rattle)
 
-train <- read.csv("train.csv", header = TRUE)
-test <- read.csv("test.csv", header = TRUE)
+train <- read.csv("train.csv", header = TRUE, stringsAsFactors=FALSE)
+test <- read.csv("test.csv", header = TRUE, stringsAsFactors=FALSE)
 
 # Summary Statistics ------------------------------------------------------
 
@@ -106,26 +107,46 @@ ggMarginal(p, type="boxplot")
 
 # Modelling Code ----------------------------------------------------------
 
+imp <- mice(train)
+train2 <- complete(imp)
+
 set.seed(42)
-imp <- mice(train, m = 5, method = "pmm")
-
-imp <- mice(train, m = 5, maxit = 40)
 
 
-trControl = trainControl(method='cv',number=10)
-
-m.nb <- train(Survived ~ ., data = train, method = "nb", trControl = trainControl(method='cv',number=10))
+train2$Survived <- as.factor(train2$Survived)
 
 
-Myrbf <- rbfdot(sigma = 0.01)
-Kernlab_svm <- ksvm(Survived ~ ., data = train, kernel = Myrbf, C = 4)
-Kernlab_svm 
+trControl = trainControl(method='cv',number=9)
 
 
+m.nb <- train(Survived ~ ., data = train, method = "nb", trControl = trainControl(method='cv',number=9))
+m.nb
 
+m.C5.0 <- train(Survived ~ ., data = train2, method = "C5.0")
+plot(m.C5.0)
 
+p <- predict(m.C5.0, train2)
+table(p, train$Survived)
+
+p <- predict(m.C5.0, test)
+table(p, train$Survived)
+
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
+             data=train2,
+             method="class")
+
+Prediction <- predict(fit, test, type = "class")
+
+library(rpart)
 
 # Submission Output -------------------------------------------------------
 
-submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
-write.csv(submit, file = "theyallperish.csv", row.names = FALSE)
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "rpart_mice.csv", row.names = FALSE)
+
+
+
+# Throwaway code ----------------------------------------------------------
+
+p.age <- lm(Age ~ . - Name - Ticket - Cabin - PassengerId - Embarked - Sex - Parch - Fare, data = train)
+summary(p.age)
