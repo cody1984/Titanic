@@ -114,15 +114,15 @@ ggMarginal(p, type="boxplot")
 set.seed(42)
 train$Survived <- as.factor(train$Survived)
 
-imp <- mice(train)
-train2 <- complete(imp)
+imp_train <- mice(train)
+imp_test <- mice(test)
 
+train2 <- complete(imp_train)
+test2 <- complete(imp_test)
 
 fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
              data = train2,
              method = "class")
-
-summary(fit)
 Prediction <- predict(fit, test, type = "class")
 
 
@@ -130,9 +130,10 @@ fit <- glm(Survived ~ Pclass + Sex + Age + SibSp,
            family = binomial(logit),
            data=train2)
 
-summary(fit)
 Prediction <- predict(fit, test, type = "response")
 Prediction <- ifelse(Prediction > 0.5,1,0)
+
+ 
 
 
 
